@@ -3,18 +3,17 @@ export default async function handler(req, res) {
     if (req.method !== "POST") return res.status(405).end();
   
     try {
-      const { CLICKSEND_USERNAME, CLICKSEND_API_KEY, CLICKSEND_FROM } = process.env;
-      if (!CLICKSEND_USERNAME || !CLICKSEND_API_KEY) {
-        return res.status(500).json({ error: "Env ClickSend non configurate" });
+      const { CLICKSEND_USERNAME, CLICKSEND_API_KEY, CLICKSEND_FROM, INVITE_URL } = process.env;
+      if (!CLICKSEND_USERNAME || !CLICKSEND_API_KEY || !INVITE_URL) {
+        return res.status(500).json({ error: "Missing ClickSend or INVITE_URL env vars" });
       }
   
-      const { phone, name, link, message } = req.body || {};
-      if (!phone) return res.status(400).json({ error: "Telefono destinatario mancante" });
+      const { phone, name, message } = req.body || {};
+      if (!phone) return res.status(400).json({ error: "Recipient phone is required" });
   
-      const body = `Ciao ${name || "ospite"}! Sei invitato${link ? `: ${link}` : ""}${message ? ` — ${message}` : ""}`;
+      const body = `Hello ${name || "there"}! You're invited. Check the invitation: ${INVITE_URL}${message ? ` — ${message}` : ""}`;
   
       const auth = Buffer.from(`${CLICKSEND_USERNAME}:${CLICKSEND_API_KEY}`).toString("base64");
-  
       const r = await fetch("https://rest.clicksend.com/v3/sms/send", {
         method: "POST",
         headers: {
