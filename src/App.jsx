@@ -1,66 +1,58 @@
 import { useState } from "react";
 
 export default function App() {
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    message: "",
-    sendEmail: true,
-    sendSms: false,
-  });
-  const [result, setResult] = useState(null);
+  const [name, setName] = useState("");
+  const [message, setMessage] = useState("");
+  const [onePhone, setOnePhone] = useState("");
+  const [bulk, setBulk] = useState("");
+  const [status, setStatus] = useState("");
 
-  const onChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setForm((f) => ({ ...f, [name]: type === "checkbox" ? checked : value }));
-  };
-
-  async function onSubmit(e) {
+  async function sendSingle(e){
     e.preventDefault();
-    setResult("Invio in corso…");
+    setStatus("Sending MMS…");
+    const r = await fetch("/api/send-mms", {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ phone: onePhone.trim(), name, message })
+    });
+    const j = await r.json().catch(()=>({}));
+    setStatus(r.ok ? "MMS sent ✅" : `Error: ${JSON.stringify(j)}`);
+  }
 
-    const payload = {
-      name: form.name,
-      email: form.email,
-      phone: form.phone,
-      message: form.message,
-    };
-
-    const tasks = [];
-    if (form.sendEmail && form.email) {
-      tasks.push(fetch("/api/send-email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then(r => r.json().catch(()=>({}))));
-    }
-    if (form.sendSms && form.phone) {
-      tasks.push(fetch("/api/send-sms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }).then(r => r.json().catch(()=>({}))));
-    }
-    if (!tasks.length) return setResult("Seleziona almeno un canale e compila email/telefono.");
-
-    const results = await Promise.all(tasks);
-    setResult(JSON.stringify(results, null, 2));
+  async function sendBatch(e){
+    e.preventDefault();
+    setStatus("Sending batch…");
+    const phones = bulk.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+    const r = await fetch("/api/send-mms-batch", {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ phones, name, message })
+    });
+    const j = await r.json().catch(()=>({}));
+    setStatus(r.ok ? `Batch done: ${j.count} numbers` : `Error: ${JSON.stringify(j)}`);
   }
 
   return (
-    <main style={{ maxWidth: 560, margin: "40px auto", fontFamily: "system-ui" }}>
-      <h1>🌴 Isla</h1>
-      <p>Questo invito sarà inviato a tutti:</p>
-      <code style={{ display: "block", marginBottom: 12 }}>{import.meta.env.VITE_INVITE_URL || "Configura VITE_INVITE_URL"}</code>
+    <main style={{ maxWidth: 680, margin: "40px auto", fontFamily: "system-ui" }}>
+      <h1>🌴 Isla — MMS (US only)</h1>
+      <p>Invite media: {import.meta.env.VITE_INVITE_URL || "(set VITE_INVITE_URL)"}</p>
 
-      <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
-        <label>Nome destinatario <input name="name" value={form.name} onChange={onChange} required /></label>
-        <label>Email destinatario <input type="email" name="email" value={form.email} onChange={onChange} /></label>
-        <label>Telefono (es. +39…) <input name="phone" value={form.phone} onChange={onChange} /></label>
-        <label>Messaggio (opz.) <textarea name="message" rows={4} value={form.message} onChange={onChange} /></label>
+      <section style={{display:"grid", gap:12, marginBottom:24}}>
+        <label>Default name <input value={name} onChange={e=>setName(e.target.value)} placeholder="Guest" /></label>
+        <label>Message (optional) <input value={message} onChange={e=>setMessage(e.target.value)} placeholder="See you there!" /></label>
+      </section>
 
-        <div style={{ display: "flex", gap: 16 }}>
-          <label><input type="checkbox" name="sendEmail" checked={form.sendEmail} onChange={onChange} /> Invia Email</label>
-          <label><input type="checkbox" name="sendSms" checked={form.sendSms} onChange={onChange} /> Invia SMS</label>
-        </div>
-
-        <button type="submit">Invia</button>
+      <form onSubmit={sendSingle} style={{display:"grid", gap:12, marginBottom:24}}>
+        <h3>Send one MMS</h3>
+        <label>US phone (+1…) <input value={onePhone} onChange={e=>setOnePhone(e.target.value)} placeholder="+1..." required /></label>
+        <button type="submit">Send MMS</button>
       </form>
 
-      <pre style={{ marginTop: 16, background: "#f6f6f6", padding: 12, overflow: "auto" }}>{result || "Output…"}</pre>
+      <form onSubmit={sendBatch} style={{display:"grid", gap:12}}>
+        <h3>Send batch (one +1 number per line)</h3>
+        <textarea rows={6} value={bulk} onChange={e=>setBulk(e.target.value)} placeholder="+12025550123\n+13015551234" />
+        <button type="submit">Send MMS to list</button>
+      </form>
+
+      {status && <div style={{marginTop:16, padding:12, background:"#111", color:"#eaeaea", borderRadius:8}}>{status}</div>}
     </main>
   );
 }
