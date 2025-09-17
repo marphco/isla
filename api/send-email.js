@@ -48,7 +48,6 @@ export default async function handler(req, res) {
     <p>You are invited! Please find the invitation attached below.</p>
     ${isImage ? `<p><img src="cid:${cid}" alt="Invitation" style="max-width:100%;height:auto;border:0" /></p>` : ""}
     ${message ? `<p style="margin-top:12px;font-style:italic;">${message}</p>` : ""}
-    <p>— Isla</p>
   `;
 
 
